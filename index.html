@@ -363,9 +363,38 @@
     z-index: 1000;
   }
   .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* Login gate (acceso unificado del Portal Absanet) */
+  #authGate { position: fixed; inset: 0; z-index: 9999; display: grid; place-items: center; padding: 24px;
+    background: linear-gradient(135deg, var(--primary-dark), var(--primary)); }
+  #authGate .agc { width: 100%; max-width: 380px; background: #fff; border-radius: 14px; padding: 30px 26px;
+    box-shadow: 0 20px 50px rgba(0,0,0,.3); }
+  #authGate h2 { margin: 0 0 4px; color: var(--primary); font-size: 20px; }
+  #authGate p { margin: 0 0 18px; color: var(--muted); font-size: 13.5px; }
+  #authGate label { display: block; font-size: 12px; font-weight: 600; color: #475569; margin: 14px 0 5px; }
+  #authGate input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; font-family: inherit; outline: none; }
+  #authGate input:focus { border-color: var(--primary-light); box-shadow: 0 0 0 3px rgba(0,116,183,.15); }
+  #authGate button { width: 100%; margin-top: 20px; padding: 11px; border: none; border-radius: 8px; background: var(--primary); color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; }
+  #authGate button:disabled { opacity: .6; cursor: default; }
+  #authGate .err { margin-top: 12px; font-size: 13px; color: var(--danger); min-height: 16px; }
+  body.authed #authGate { display: none; }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
+
+<div id="authGate">
+  <form class="agc" id="agForm">
+    <h2>Calculadora Prima ⇄ Premio</h2>
+    <p>Ingresá con tu cuenta del Portal Absanet.</p>
+    <label for="ag-email">Email</label>
+    <input id="ag-email" type="email" required autocomplete="username" placeholder="tu@correo.com">
+    <label for="ag-pass">Contraseña</label>
+    <input id="ag-pass" type="password" required autocomplete="current-password" placeholder="••••••••">
+    <button type="submit" id="ag-btn">Ingresar</button>
+    <div class="err" id="ag-err"></div>
+  </form>
+</div>
 
 <header>
   <div class="header-inner">
@@ -387,6 +416,7 @@
       <button class="btn btn-ghost" id="btn-print-staff">PDF Staff</button>
       <button class="btn btn-ghost" id="btn-print-client">PDF Cliente</button>
       <button class="btn" id="btn-clear">Limpiar</button>
+      <button class="btn btn-ghost" id="btn-logout">Salir</button>
     </div>
   </div>
 </header>
@@ -1303,6 +1333,29 @@
   });
 
   recalc();
+})();
+</script>
+
+<script>
+/* Login unificado (Portal Absanet). Herramienta sin datos sensibles → gate client-side. */
+(function(){
+  var sb = window.supabase.createClient(
+    "https://ohlkftfgxwcidsapcsku.supabase.co",
+    "sb_publishable_riIgQVEsmhW6mOamCBLaAQ_rHyQjB7z"
+  );
+  var g = function(id){ return document.getElementById(id); };
+  function entrar(){ document.body.classList.add('authed'); }
+  sb.auth.getSession().then(function(r){ if (r.data && r.data.session) entrar(); });
+  g('agForm').addEventListener('submit', async function(e){
+    e.preventDefault();
+    var btn = g('ag-btn'), err = g('ag-err');
+    btn.disabled = true; btn.textContent = 'Ingresando…'; err.textContent = '';
+    var res = await sb.auth.signInWithPassword({ email: g('ag-email').value.trim(), password: g('ag-pass').value });
+    btn.disabled = false; btn.textContent = 'Ingresar';
+    if (res.error){ err.textContent = /invalid login credentials/i.test(res.error.message) ? 'Email o contraseña incorrectos.' : res.error.message; return; }
+    entrar();
+  });
+  var lo = g('btn-logout'); if (lo) lo.addEventListener('click', function(){ sb.auth.signOut().then(function(){ location.reload(); }); });
 })();
 </script>
 
